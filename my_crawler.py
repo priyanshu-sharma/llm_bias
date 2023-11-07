@@ -102,7 +102,7 @@ class CrawlGraph:
 
 
 def starter():
-    df = pd.read_csv('data.csv')
+    df = pd.read_csv('new_data.csv')
     print(df.head(10))
     for _, row in df.iterrows():
         print(row['s_no'], row['url'], row['level'])
@@ -118,3 +118,6 @@ def starter():
         time.sleep(2)
 
 starter()
+
+# 101, 81, 74, 68
+# 68,https://malegislature.gov/Laws/GeneralLaws/PartI/TitleIX/Chapter59/Section5A,mass,-1,-1,-1,-1

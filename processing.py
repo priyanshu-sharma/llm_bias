@@ -47,10 +47,23 @@ def remove_unwanted_data(level, s_no, abp):
     # except Exception as e:
     #     print(e)
     
+# def processing():
+#     df = pd.read_csv('new_data.csv')
+#     for i in range(len(df)):
+#         s_no, level = df['s_no'][i], df['level'][i]
+#         average_before_processing, total_lines = parse_data(level, s_no)
+#         # average_after_processing = average_after_processing - (average_after_processing % 10)
+#         df['abp'][i] = average_before_processing
+#         df['lbp'][i] = total_lines
+#     if 'Unnamed: 0' in df.columns:
+#         df = df.drop(columns=['Unnamed: 0'])
+#     print(df.columns)
+#     column_list = ["s_no","url","level","abp","lbp","aap","lap"]
+#     df.to_csv('new_data.csv', columns = column_list)
 
 
 def processing():
-    df = pd.read_csv('data.csv')
+    df = pd.read_csv('new_data.csv')
     for i in range(len(df)):
         s_no, level, abp = df['s_no'][i], df['level'][i], df['abp'][i]
         average_after_processing, total_lines = remove_unwanted_data(level, s_no, abp)
@@ -61,6 +74,6 @@ def processing():
         df = df.drop(columns=['Unnamed: 0'])
     print(df.columns)
     column_list = ["s_no","url","level","abp","lbp","aap","lap"]
-    df.to_csv('data.csv', columns = column_list)
+    df.to_csv('new_data.csv', columns = column_list)
 
 processing()
