@@ -1,3 +1,0 @@
-strict graph  {
-https [child_link="[]", data="b'\n403 Forbidden\n403 Forbidden\nnginx'"];
-}
