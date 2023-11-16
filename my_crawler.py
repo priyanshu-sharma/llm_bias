@@ -12,10 +12,10 @@ from networkx.drawing.nx_pydot import write_dot
 
 
 class CrawlGraph:
-    def __init__(self, s_no, starting_link, level):
+    def __init__(self, s_no, starting_link, name):
         self.s_no = s_no
         self.starting_link = starting_link
-        self.level = level
+        self.name = name
         self.max_depth = 1
         self.initial_patterns = ['U.S. Department', 'Title IX', 'Commission', 'regulations', 'Sex', 'Rights', 'Discrimination', 'Law', 'Harassment', 'Policy']
         self.match_patterns = self.initialize_patterns()
@@ -43,7 +43,7 @@ class CrawlGraph:
             if len(text) > 1 and not text.isspace():
                 data = data + '\n' + text.strip()
         bytedata = data.encode('utf-8')
-        binary_file = open("output/{}/{}.txt".format(self.level, self.s_no), "ab")
+        binary_file = open("output/{}/{}.txt".format(self.name, self.s_no), "ab")
         binary_file.write(bytedata)
         binary_file.close()
         return bytedata
@@ -97,19 +97,19 @@ class CrawlGraph:
         G.nodes[self.starting_link]['child_link'] = child_link
         self.crawl_data(G)
         nx.draw(G, with_labels = True)
-        plt.savefig("output/{}/{}.png".format(self.level, self.s_no))
-        write_dot(G, 'output/{}/{}.dot'.format(self.level, self.s_no))
+        plt.savefig("output/{}/{}.png".format(self.name, self.s_no))
+        write_dot(G, 'output/{}/{}.dot'.format(self.name, self.s_no))
 
 
 def starter():
     df = pd.read_csv('new_data.csv')
     print(df.head(10))
     for _, row in df.iterrows():
-        print(row['s_no'], row['url'], row['level'])
+        print(row['s_no'], row['url'], row['name'])
         print('----------------------------------')
         start_time = time.time()
         try:
-            crawlgraph = CrawlGraph(row['s_no'], row['url'], row['level'])
+            crawlgraph = CrawlGraph(row['s_no'], row['url'], row['name'])
         except Exception as e:
             print("Exception - ", e)
         end_time = time.time()
