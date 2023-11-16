@@ -184,6 +184,11 @@ class TextAnalysis:
             self.initial_vector[name]['vader_neu'] = vader_neu
             self.initial_vector[name]['vader_pos'] = vader_pos
             self.initial_vector[name]['vader_compound'] = vader_compound
+            filtered_vader_neg, filtered_vader_neu, filtered_vader_pos, filtered_vader_compound = self.get_vader_score(filtered_text)
+            self.initial_vector[name]['filtered_vader_neg'] = filtered_vader_neg
+            self.initial_vector[name]['filtered_vader_neu'] = filtered_vader_neu
+            self.initial_vector[name]['filtered_vader_pos'] = filtered_vader_pos
+            self.initial_vector[name]['filtered_vader_compound'] = filtered_vader_compound
 
     def orchestrate(self):
         self.initialize_vector()
