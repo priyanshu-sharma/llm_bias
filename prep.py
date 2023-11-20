@@ -8,6 +8,7 @@ from collections import Counter
 from nltk.stem.porter import PorterStemmer
 from nltk.stem import WordNetLemmatizer
 from textblob import TextBlob
+from transformers import pipeline
 from transformers import AutoTokenizer
 from transformers import AutoModelForSequenceClassification
 from scipy.special import softmax
