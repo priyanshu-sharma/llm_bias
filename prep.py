@@ -1,11 +1,15 @@
 import re
 import nltk
 import pandas as pd
+from time import time
 from nltk.corpus import stopwords
 from collections import Counter
 from nltk.stem.porter import PorterStemmer
 from nltk.stem import WordNetLemmatizer
 from textblob import TextBlob
+from transformers import AutoTokenizer
+from transformers import AutoModelForSequenceClassification
+from scipy.special import softmax
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 
@@ -79,19 +83,28 @@ class TextAnalysis:
         self.stemmer = PorterStemmer()
         self.lemmatizer = WordNetLemmatizer()
         self.sent_analyzer = SentimentIntensityAnalyzer()
+        self.roberta_pretrained_model = f"cardiffnlp/twitter-roberta-base-sentiment"
 
     def initialize_vector(self):
+        start_iv = time()
+        print("---------------------------------Initial Vector Loading Started-------------------------------------------")
         df = pd.read_csv('data.csv')
         self.unique_names = df.name.unique()
+        count = 0
         for name in self.unique_names:
+            count = count + 1
             self.initial_vector[name] = {}
             f = open("final/{}.txt".format(name), "r")
             data = ''
             for text in f:
                 data = data + text + ' '
+            self.initial_vector[name]['id'] = count
+            self.initial_vector[name]['name'] = name
             self.initial_vector[name]['raw_text'] = data
             f.close()
-        print("------------Text Extraction-------------")
+        print("---------------------------------Initial Vector Loading Completed-------------------------------------------")
+        end_iv = time()
+        print("Total time taken - {}".format(end_iv - start_iv))
  
     def convert_lowercase(self, text):
         return text.lower()
@@ -118,7 +131,7 @@ class TextAnalysis:
             cnt[word] += 1
         most_common = set([(w, wc) for (w, wc) in cnt.most_common(self.WORD_THRESHOLD)])
         least_common = set([(w, wc) for (w, wc) in cnt.most_common()[:-self.WORD_THRESHOLD-1:-1]])
-        return most_common, least_common
+        return cnt, most_common, least_common
 
     def stemming(self, text):
         return " ".join([self.stemmer.stem(word) for word in text.split()])
@@ -146,6 +159,8 @@ class TextAnalysis:
         return vader_neg, vader_neu, vader_pos, vader_compound
 
     def preprocess(self):
+        start_p = time()
+        print("---------------------------------Preprocessing Started-------------------------------------------")
         for name, data in self.initial_vector.items():
             lowercase_data = self.convert_lowercase(data['raw_text'])
             without_urls = self.remove_urls(lowercase_data)
@@ -155,7 +170,8 @@ class TextAnalysis:
             self.initial_vector[name]['wp_text'] = data_without_punc
             filtered_text = self.remove_stopwords(data_without_punc)
             self.initial_vector[name]['text'] = filtered_text
-            most_common, least_common = self.word_counter(filtered_text)
+            cnt, most_common, least_common = self.word_counter(filtered_text)
+            self.initial_vector[name]['counter_obj'] = cnt
             self.initial_vector[name]['most_common'] = most_common
             self.initial_vector[name]['least_common'] = least_common
             stem_words = self.stemming(filtered_text)
@@ -189,10 +205,52 @@ class TextAnalysis:
             self.initial_vector[name]['filtered_vader_neu'] = filtered_vader_neu
             self.initial_vector[name]['filtered_vader_pos'] = filtered_vader_pos
             self.initial_vector[name]['filtered_vader_compound'] = filtered_vader_compound
+        print("---------------------------------Preprocessing Completed-------------------------------------------")
+        end_p = time()
+        print("Total time taken - {}".format(end_p - start_p))
+
+    def check_for_roberta_score(self, text):
+        tokenizer = AutoTokenizer.from_pretrained(self.roberta_pretrained_model)
+        model = AutoModelForSequenceClassification.from_pretrained(self.roberta_pretrained_model)
+        roberta_encoded_text = tokenizer(text, return_tensors='pt', padding='max_length', truncation=True, max_length=512)
+        output = model(**roberta_encoded_text)
+        scores = output[0][0].detach().numpy()
+        scores = softmax(scores)
+        roberta_neg, roberta_neu, roberta_pos = scores[0], scores[1], scores[2]
+        return roberta_encoded_text, roberta_neg, roberta_neu, roberta_pos
+
+    def check_for_political_bias(self, text):
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
+        model = AutoModelForSequenceClassification.from_pretrained("bucketresearch/politicalBiasBERT")
+        bert_encoded_text = tokenizer(text, return_tensors="pt", padding='max_length', truncation=True, max_length=512)
+        output = model(**bert_encoded_text)
+        scores = output[0][0].detach().numpy()
+        scores = softmax(scores)
+        pbb_left, pbb_center, pbb_right = scores[0], scores[1], scores[2]
+        return bert_encoded_text, pbb_left, pbb_center, pbb_right
+
+    def transformer_models(self):
+        start_t = time()
+        print("---------------------------------Transformer Preprocessing Started-------------------------------------------")
+        for name, data in self.initial_vector.items():
+            roberta_encoded_text, roberta_neg, roberta_neu, roberta_pos = self.check_for_roberta_score(data['raw_text'])
+            self.initial_vector[name]['roberta_encoded_text'] = roberta_encoded_text
+            self.initial_vector[name]['roberta_neg'] = roberta_neg
+            self.initial_vector[name]['roberta_neu'] = roberta_neu
+            self.initial_vector[name]['roberta_pos'] = roberta_pos
+            bert_encoded_text, pbb_left, pbb_center, pbb_right = self.check_for_political_bias(data['raw_text'])
+            self.initial_vector[name]['bert_encoded_text'] = bert_encoded_text
+            self.initial_vector[name]['pbb_left'] = pbb_left 
+            self.initial_vector[name]['pbb_center'] = pbb_center 
+            self.initial_vector[name]['pbb_right'] = pbb_right
+        print("---------------------------------Transformer Preprocessing Completed-------------------------------------------")
+        end_t = time()
+        print("Total time taken - {}".format(end_t - start_t))
 
     def orchestrate(self):
         self.initialize_vector()
         self.preprocess()
+        # self.transformer_models()
 
 # from prep import TextAnalysis
 # ta = TextAnalysis()
