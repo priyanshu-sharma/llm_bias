@@ -97,7 +97,7 @@ class TextAnalysis:
         for name in self.unique_names:
             count = count + 1
             self.initial_vector[name] = {}
-            f = open("final/{}.txt".format(name), "r", encoding="utf8")
+            f = open("final/{}.txt".format(name), "r", encoding="utf-8")
             data = ''
             for text in f:
                 data = data + text + ' '
