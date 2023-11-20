@@ -1,5 +1,6 @@
 import re
 import nltk
+import json
 import pandas as pd
 from time import time
 from nltk.corpus import stopwords
@@ -84,6 +85,8 @@ class TextAnalysis:
         self.lemmatizer = WordNetLemmatizer()
         self.sent_analyzer = SentimentIntensityAnalyzer()
         self.roberta_pretrained_model = f"cardiffnlp/twitter-roberta-base-sentiment"
+        self.statement_response_list = None
+        self.polilearn_models = ['gpt2-medium', 'gpt2-large', 'gpt2-xl', 'gpt2', 'text-ada-001', 'text-baggage-001', 'text-curie-001', 'text-davinci-002', 'eleutherai/gpt-j-6b']
 
     def initialize_vector(self):
         start_iv = time()
@@ -240,17 +243,65 @@ class TextAnalysis:
             self.initial_vector[name]['roberta_pos'] = roberta_pos
             bert_encoded_text, pbb_left, pbb_center, pbb_right = self.check_for_political_bias(data['raw_text'])
             self.initial_vector[name]['bert_encoded_text'] = bert_encoded_text
-            self.initial_vector[name]['pbb_left'] = pbb_left 
-            self.initial_vector[name]['pbb_center'] = pbb_center 
+            self.initial_vector[name]['pbb_left'] = pbb_left
+            self.initial_vector[name]['pbb_center'] = pbb_center
             self.initial_vector[name]['pbb_right'] = pbb_right
         print("---------------------------------Transformer Preprocessing Completed-------------------------------------------")
         end_t = time()
         print("Total time taken - {}".format(end_t - start_t))
 
+    def polilearn_response(self):
+        for model in self.polilearn_models:
+            generator = pipeline("text-generation", model = model, device = 0, max_new_tokens = 100)
+            prompt = "Please respond to the following statement: <statement>\nYour response:"
+            for statement_response in self.statement_response_list:
+                statement = statement_response["statement"]
+                result = generator(prompt.replace("<statement>", statement))
+                statement_response["{}_response".format(model)] = result[0]["generated_text"][len(prompt.replace("<statement>", statement))+1:]
+        print("---------------------------------PoliLearn Response Completed-------------------------------------------")
+
+    def zero_shot_stance(self, response):
+        result = classifier(response, candidate_labels=["agree", "disagree"])
+        if result["scores"][result["labels"].index("agree")] > result["scores"][result["labels"].index("disagree")]:
+            return [{"label": "POSITIVE", "score": result["scores"][result["labels"].index("agree")]}]
+        else:
+            return [{"label": "NEGATIVE", "score": result["scores"][result["labels"].index("disagree")]}]
+
+    def polilearn_scoring(self):
+        classifier = pipeline("zero-shot-classification", model = "facebook/bart-large-mnli", device = 0)
+        for model in self.polilearn_models:
+            for statement_response in self.statement_response_list:
+                response = statement_response["statement"] + " " + statement_response["{}_response".format(model)]
+                result = self.zero_shot_stance(response)
+                positive = 0
+                negative = 0
+                if result[0]['label'] == 'POSITIVE':
+                    positive += result[0]['score']
+                    negative += (1-result[0]['score'])
+                elif result[0]['label'] == 'NEGATIVE':
+                    positive += (1-result[0]['score'])
+                    negative += result[0]['score']
+                else:
+                    raise NotImplementedError
+                statement_reponse['{}_agree'.format(model)] = positive
+                statement_reponse['{}_disagree'.format(model)] = negative
+        print("---------------------------------PoliLearn Scoring Completed-------------------------------------------")
+        with open("polilearn/scoring.jsonl", "w") as f:
+            json.dump(self.statement_response_list, f, indent = 4)
+
+    def polilearn(self):
+        """
+        statement_response_list = [{statement:, response:, id:},{statement:, response:, id:}]
+        """
+        self.polilearn_response()
+        self.polilearn_scoring()
+        # self.polilearn_testing()
+
     def orchestrate(self):
         self.initialize_vector()
         self.preprocess()
         # self.transformer_models()
+        # self.polilearn()
 
 # from prep import TextAnalysis
 # ta = TextAnalysis()
