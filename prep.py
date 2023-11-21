@@ -253,6 +253,7 @@ class TextAnalysis:
         print("Total time taken - {}".format(end_t - start_t))
 
     def polilearn_response(self):
+        start_pr = time()
         for model in self.polilearn_models:
             generator = pipeline("text-generation", model = model, max_new_tokens = 100)
             prompt = "Please respond to the following statement: <statement>\nYour response:"
@@ -266,8 +267,11 @@ class TextAnalysis:
                     except Exception as e:
                         print("Error - ", e)
         print("---------------------------------PoliLearn Response Completed-------------------------------------------")
+        end_pr = time()
+        print("Total time taken - {}".format(end_pr - start_pr))
 
     def zero_shot_stance(self, response):
+        classifier = pipeline("zero-shot-classification", model = "facebook/bart-large-mnli")
         result = classifier(response, candidate_labels=["agree", "disagree"])
         if result["scores"][result["labels"].index("agree")] > result["scores"][result["labels"].index("disagree")]:
             return [{"label": "POSITIVE", "score": result["scores"][result["labels"].index("agree")]}]
@@ -275,7 +279,7 @@ class TextAnalysis:
             return [{"label": "NEGATIVE", "score": result["scores"][result["labels"].index("disagree")]}]
 
     def polilearn_scoring(self):
-        classifier = pipeline("zero-shot-classification", model = "facebook/bart-large-mnli")
+        start_ps = time()
         for model in self.polilearn_models:
             for statement_response in self.statement_response_list:
                 for chunks in statement_response['chunks']:
@@ -299,6 +303,9 @@ class TextAnalysis:
         print("---------------------------------PoliLearn Scoring Completed-------------------------------------------")
         with open("polilearn/scoring.jsonl", "w") as f:
             json.dump(self.statement_response_list, f, indent = 4)
+        end_ps = time()
+        print("Total time taken - {}".format(end_ps - start_ps))
+
 
     def polilearn(self):
         """
