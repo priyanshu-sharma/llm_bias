@@ -258,10 +258,13 @@ class TextAnalysis:
             prompt = "Please respond to the following statement: <statement>\nYour response:"
             for statement_response in self.statement_response_list:
                 for chunks in statement_response['chunks']:
-                    statement = chunks["statement"]
-                    promp = prompt.replace("<statement>", statement)
-                    result = generator(promp)
-                    chunks["{}_response".format(model)] = result[0]["generated_text"][len(promp)+1:]
+                    try:
+                        statement = chunks["statement"]
+                        promp = prompt.replace("<statement>", statement)
+                        result = generator(promp)
+                        chunks["{}_response".format(model)] = result[0]["generated_text"][len(promp)+1:]
+                    except Exception as e:
+                        print("Error - ", e)
         print("---------------------------------PoliLearn Response Completed-------------------------------------------")
 
     def zero_shot_stance(self, response):
@@ -276,20 +279,23 @@ class TextAnalysis:
         for model in self.polilearn_models:
             for statement_response in self.statement_response_list:
                 for chunks in statement_response['chunks']:
-                    response = chunks["statement"] + " " + chunks["{}_response".format(model)]
-                    result = self.zero_shot_stance(response)
-                    positive = 0
-                    negative = 0
-                    if result[0]['label'] == 'POSITIVE':
-                        positive += result[0]['score']
-                        negative += (1-result[0]['score'])
-                    elif result[0]['label'] == 'NEGATIVE':
-                        positive += (1-result[0]['score'])
-                        negative += result[0]['score']
-                    else:
-                        raise NotImplementedError
-                    chunks['{}_agree'.format(model)] = positive
-                    chunks['{}_disagree'.format(model)] = negative
+                    try:
+                        response = chunks["statement"] + " " + chunks.get("{}_response".format(model), "")
+                        result = self.zero_shot_stance(response)
+                        positive = 0
+                        negative = 0
+                        if result[0]['label'] == 'POSITIVE':
+                            positive += result[0]['score']
+                            negative += (1-result[0]['score'])
+                        elif result[0]['label'] == 'NEGATIVE':
+                            positive += (1-result[0]['score'])
+                            negative += result[0]['score']
+                        else:
+                            raise NotImplementedError
+                        chunks['{}_agree'.format(model)] = positive
+                        chunks['{}_disagree'.format(model)] = negative
+                    except Exception as e:
+                        print("Error - ", e)
         print("---------------------------------PoliLearn Scoring Completed-------------------------------------------")
         with open("polilearn/scoring.jsonl", "w") as f:
             json.dump(self.statement_response_list, f, indent = 4)
