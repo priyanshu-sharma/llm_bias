@@ -300,6 +300,7 @@ class TextAnalysis:
                         chunks['{}_disagree'.format(model)] = negative
                     except Exception as e:
                         print("Error - ", e)
+            print("---------------------------------Statement Response Completed-------------------------------------------")
         print("---------------------------------PoliLearn Scoring Completed-------------------------------------------")
         with open("polilearn/scoring.jsonl", "w") as f:
             json.dump(self.statement_response_list, f, indent = 4)
